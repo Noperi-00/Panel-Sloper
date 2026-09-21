@@ -326,7 +326,15 @@ async def _open_tcp_for_session(session_id: str, uuid: str, sess: dict, first_ch
     logger.info(f"connect XHTTP[{sess['mode']}] [{session_id[:8]}] -> {address}:{port}")
     c = connections.get(sess.get("conn_id"))
     if c is not None:
-        c["dest"] = f"{address}:{port}"
+        # XHTTP برای هر سایت یک session جدید باز می‌کنه؛ جدیدترین مقصد رو
+        # روی این IP نگه می‌داریم تا لاگ همیشه آخرین سایت رو نشون بده.
+        _ip = c.get("ip", "")
+        _nd = f"{address}:{port}"
+        c["dest"] = _nd
+        if _ip:
+            for _cid, _c in connections.items():
+                if _c.get("ip") == _ip:
+                    _c["dest"] = _nd
     sess["writer"] = writer
     sess["tcp_open"] = True
     sess["downlink_task"] = asyncio.create_task(

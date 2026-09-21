@@ -96,6 +96,17 @@ async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: 
             await throttle(uid, len(data))
             stats["total_requests"] += 1
             connections[conn_id]["bytes"] += len(data)
+            # ── تشخیص مقصد جدید: هر پکت ممکنه هدر VLESS یه سایت جدید باشه ──
+            try:
+                if len(data) >= 24 and data[0] == 0:
+                    _cmd, _addr, _port, _rest = await parse_vless_header(data)
+                    if _addr:
+                        _d = f"{_addr}:{_port}"
+                        if connections.get(conn_id, {}).get("dest") != _d:
+                            connections[conn_id]["dest"] = _d
+                            logger.info(f"➡️  [{conn_id}] -> {_d}")
+            except Exception:
+                pass
             writer.write(data)
             if writer.transport.get_write_buffer_size() > RELAY_BUF:
                 await writer.drain()
