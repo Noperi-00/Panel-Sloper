@@ -3,7 +3,7 @@
 # 🟢 Panel Sloper
 
 > پنل حرفه‌ای ساخت و مدیریت کانفیگ **VLESS / XHTTP** — سبک، سریع و آمادهٔ استقرار روی Railway.
-> ساخته و توسعه‌یافته توسط **Nol**؛ ربات تلگرام به‌طور کامل حذف شده و تمرکز روی پنل وب و کیفیت تونل است.
+> ساخته و توسعه‌یافته توسط **Noperi-00**
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/new/template/XwqO7j)
 
@@ -151,7 +151,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 ## 📜 لایسنس
 
-MIT — آزاد برای استفاده، تغییر و فورک. هرگونه استفادهٔ تجاری بلامانع است.
+MIT
 
 © 2026 Panel Sloper
 
