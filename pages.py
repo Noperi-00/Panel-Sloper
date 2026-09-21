@@ -605,6 +605,11 @@ a{color:inherit;text-decoration:none}
 .lrow-v2-meta{font-size:9.5px;color:var(--t3);margin-top:2px;display:flex;align-items:center;gap:6px}
 .lrow-v2-status{font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;flex-shrink:0;white-space:nowrap}
 .lrow-v2-status.on{background:var(--green-bg);color:var(--green-t)}
+.lrow-v2-status.on{background:var(--green-bg);color:var(--green-t)}
+.lrow-links{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.lrow-link-btn{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.22);color:#34D399;border-radius:7px;padding:3px 7px;font-size:9.5px;font-family:ui-monospace,monospace;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:.15s;max-width:100%}
+.lrow-link-btn:hover{background:rgba(16,185,129,.18);transform:translateY(-1px)}
+.lrow-link-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .lrow-v2-status.off{background:var(--red-bg);color:var(--red-t)}
 
 .lmodal-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 24px;border-top:1px solid var(--card-b)}
@@ -2199,9 +2204,14 @@ function renderSubsGrid(subs){
         </div>
       </div>
       <div class="sub-card-url-row">
-        <span class="sub-card-url-text">${esc(s.public_url)}</span>
-        <button class="sub-card-url-copy" onclick="navigator.clipboard.writeText('${esc(s.public_url)}').then(()=>toast('لینک پابلیک کپی شد','ok'))" title="کپی"><i class="ti ti-copy"></i></button>
+        <span class="sub-card-url-text" title="صفحه پابلیک">${esc(s.public_url)}</span>
+        <button class="sub-card-url-copy" onclick="navigator.clipboard.writeText('${esc(s.public_url)}').then(()=>toast('لینک پابلیک کپی شد','ok'))" title="کپی پابلیک"><i class="ti ti-copy"></i></button>
         <button class="sub-card-url-copy" onclick="window.open('${esc(s.public_url)}','_blank')" title="باز کردن"><i class="ti ti-external-link"></i></button>
+      </div>
+      <div class="sub-card-url-row" style="margin-top:6px">
+        <span class="sub-card-url-text" style="color:var(--purple-t)" title="لینک ساب (base64)">${esc(s.sub_url)}</span>
+        <button class="sub-card-url-copy" onclick="navigator.clipboard.writeText('${esc(s.sub_url)}').then(()=>toast('لینک ساب کپی شد','ok'))" title="کپی ساب"><i class="ti ti-rss"></i></button>
+        <button class="sub-card-url-copy" onclick="showQR('${esc(s.sub_url)}')" title="QR ساب"><i class="ti ti-qrcode"></i></button>
       </div>
       <div class="sub-card-bottom">
         <button class="btn btn-sm btn-g" onclick="openSubLinks('${esc(s.sub_id)}','${esc(s.name)}')"><i class="ti ti-link-plus"></i> کانفیگ‌ها</button>
@@ -2346,12 +2356,19 @@ function renderLmodalList(links){
   body.innerHTML=links.map(l=>{
     const checked=lmodalInSub.has(l.uuid);
     const on=l.active&&!l.expired;
+    const vlink=l.vless_link||'';
+    const surl=l.sub_url||'';
     return `<div class="lrow-v2 ${checked?'checked':''}" data-uuid="${l.uuid}" data-name="${esc(l.label).toLowerCase()}" onclick="toggleLrow('${l.uuid}',this)">
       <div class="lrow-v2-check"><i class="ti ti-check"></i></div>
       <div class="lrow-v2-avatar"><i class="ti ti-key"></i></div>
       <div class="lrow-v2-info">
         <div class="lrow-v2-name">${esc(l.label)}</div>
         <div class="lrow-v2-meta"><i class="ti ti-database" style="font-size:10px"></i> ${fmtB(l.used_bytes)}</div>
+        <div class="lrow-links">
+          <button class="lrow-link-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(vlink)}').then(()=>toast('لینک کپی شد','ok'))" title="کپی لینک VLESS"><i class="ti ti-copy"></i><span>لینک</span></button>
+          <button class="lrow-link-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(surl)}').then(()=>toast('ساب کپی شد','ok'))" title="کپی Sub URL"><i class="ti ti-rss"></i><span>ساب</span></button>
+          <button class="lrow-link-btn" onclick="event.stopPropagation();showQR('${esc(vlink)}')" title="QR کد"><i class="ti ti-qrcode"></i><span>QR</span></button>
+        </div>
       </div>
       <span class="lrow-v2-status ${on?'on':'off'}">${on?'فعال':'غیرفعال'}</span>
     </div>`;
