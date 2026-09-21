@@ -3,7 +3,7 @@
 # 🟢 Panel Sloper
 
 > پنل حرفه‌ای ساخت و مدیریت کانفیگ **VLESS / XHTTP** — سبک، سریع و آمادهٔ استقرار روی Railway.
-> ساخته و توسعه‌یافته توسط **Noperi-00**
+> ساخته و توسعه‌یافته توسط **Noperi**
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/new/template/XwqO7j)
 
@@ -156,9 +156,3 @@ MIT
 © 2026 Panel Sloper
 
 </div>
-
-<!-- persistence test -->
-
-[keep]
-
-[keep2]
