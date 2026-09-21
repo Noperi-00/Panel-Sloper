@@ -2879,6 +2879,12 @@ html,body{{min-height:100%;overflow-x:hidden;background:var(--bg);font-family:va
 .cfg-vless-inner{{overflow:hidden}}
 .cfg-vless{{background:rgba(0,0,0,.22);border:1px solid var(--card-b);border-radius:10px;padding:11px 13px;font-size:9.8px;font-family:ui-monospace,monospace;color:var(--accent2);word-break:break-all;line-height:1.7;margin-top:9px;max-height:90px;overflow-y:auto}}
 [data-theme="light"] .cfg-vless{{background:rgba(46,99,214,.05)}}
+.cfg-link-label{{font-size:9.5px;font-weight:800;color:var(--t2);display:flex;align-items:center;gap:5px;margin-top:11px;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}}
+.cfg-link-label i{{font-size:12px}}
+.cfg-link-label .ll-vless i{{color:var(--accent2)}}
+.cfg-link-label .ll-sub i{{color:var(--purple-t)}}
+.cfg-vless.is-sub{{color:var(--purple-t);margin-top:5px}}
+[data-theme="light"] .cfg-vless.is-sub{{background:rgba(157,123,240,.05)}}
 .cfg-actions{{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}}
 .btn{{font-family:inherit;font-size:11.5px;font-weight:700;border-radius:10px;padding:8px 15px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border:none;transition:all .15s;white-space:nowrap}}
 .btn i{{font-size:13px}}
@@ -3146,13 +3152,20 @@ function renderContent(d){{
               </button>
               <div class="cfg-vless-wrap" id="vw-${{i}}">
                 <div class="cfg-vless-inner">
+                  <div class="cfg-link-label"><span class="ll-vless"><i class="ti ti-key"></i> لینک کانفیگ</span></div>
                   <div class="cfg-vless">${{esc(l.vless_link)}}</div>
+                  <div class="cfg-link-label"><span class="ll-sub"><i class="ti ti-rss"></i> لینک ساب کلاینت</span></div>
+                  <div class="cfg-vless is-sub">${{esc(l.sub_url)}}</div>
                 </div>
               </div>
               <div class="cfg-actions">
                 <button class="btn btn-p"
                   onclick="navigator.clipboard.writeText(window._sloperLinks[${{i}}].vless).then(()=>toast('لینک کپی شد ✓','ok'))">
                   <i class="ti ti-copy"></i> کپی لینک
+                </button>
+                <button class="btn btn-pur"
+                  onclick="navigator.clipboard.writeText(window._sloperLinks[${{i}}].sub).then(()=>toast('لینک ساب کلاینت کپی شد ✓','ok'))">
+                  <i class="ti ti-rss"></i> کپی ساب کلاینت
                 </button>
                 <button class="btn btn-g"
                   onclick="showQR(window._sloperLinks[${{i}}].label, window._sloperLinks[${{i}}].vless)">
