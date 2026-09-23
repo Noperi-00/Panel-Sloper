@@ -128,6 +128,56 @@ CONFIG = {
 TRUST_PROXY_HEADERS = os.environ.get("TRUST_PROXY_HEADERS", "false").lower() in {"1", "true", "yes"}
 ALLOWED_PUBLIC_HOSTS = {x.strip().split(":", 1)[0].lower() for x in os.environ.get("ALLOWED_PUBLIC_HOSTS", "").split(",") if x.strip()}
 
+# ── Trusted reverse-proxy allowlist (IP spoofing defense) ────────────────────
+# Client-supplied X-Forwarded-For / X-Real-IP are only honoured when the TCP peer
+# that opened the connection is a proxy we explicitly trust. Empty = trust nobody,
+# so the socket peer address is always the authoritative client IP.
+TRUSTED_PROXIES: set[str] = {
+    x.strip().lower() for x in os.environ.get("TRUSTED_PROXIES", "").split(",") if x.strip()
+}
+
+def _peer_host(client) -> str:
+    """Socket peer address of the actual TCP connection (never spoofable)."""
+    try:
+        return (client.host if client else "") or ""
+    except Exception:
+        return ""
+
+def _trusted_peer(peer: str) -> bool:
+    """True only when the TCP peer is in the trusted-proxy allowlist."""
+    if not peer or not TRUSTED_PROXIES:
+        return False
+    return peer.lower() in TRUSTED_PROXIES
+
+def _extract_forwarded(headers) -> str:
+    """Read the left-most client address from proxy headers; '' when absent/invalid."""
+    fwd = (headers.get("x-forwarded-for") or "").strip()
+    if fwd:
+        # left-most entry is the original client; the rest are successive proxies
+        candidate = fwd.split(",", 1)[0].strip()
+    else:
+        candidate = (headers.get("x-real-ip") or "").strip()
+    if not candidate:
+        return ""
+    # reject obvious garbage: must parse as an IP or a valid hostname label
+    if len(candidate) > 64 or " " in candidate:
+        return ""
+    return candidate
+
+def resolve_client_ip(request) -> str:
+    """Authoritative client IP. Proxy headers are trusted only from a trusted peer.
+
+    Accepts a FastAPI `Request` or a Starlette `WebSocket` — both expose `.client`
+    and `.headers`. Behind Railway the TCP peer is Railway's own proxy; set
+    TRUSTED_PROXIES to that egress address to make forwarded headers meaningful.
+    Without it, the socket peer is used, which cannot be spoofed by the client."""
+    peer = _peer_host(request.client)
+    if TRUST_PROXY_HEADERS or _trusted_peer(peer):
+        forwarded = _extract_forwarded(request.headers)
+        if forwarded:
+            return forwarded
+    return peer or "نامشخص"
+
 _cors_origins = [x.strip() for x in os.environ.get("CORS_ORIGINS", "").split(",") if x.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -293,7 +343,8 @@ def log_activity(kind: str, message: str, level: str = "info", meta: dict | None
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 SESSION_COOKIE = "vpn_session"
-SESSION_TTL = 60 * 60 * 24 * 365
+# Admin sessions now expire and roll over instead of lasting a full year.
+SESSION_TTL = int(os.environ.get("SESSION_TTL_SECONDS", str(60 * 60 * 24 * 30)))  # 30 days default
 
 def hash_password(pw: str) -> str:
     """PBKDF2 password hash; legacy SHA-256 hashes remain verifiable for migration."""
@@ -330,16 +381,26 @@ LOGIN_LOCK = asyncio.Lock()
 LOGIN_WINDOW = 300
 LOGIN_MAX_FAILURES = 8
 
-async def login_rate_limited(ip: str) -> bool:
+def _login_key(ip: str, username: str | None) -> str:
+    """Rate-limit key. Always keyed on the supplied username so an attacker cannot
+    reset the counter by rotating a spoofable X-Forwarded-For value; the unspoofable
+    peer IP is added when a username is absent."""
+    u = (username or "").strip().lower()
+    if u:
+        return f"u:{u}"
+    return f"ip:{ip}"
+
+async def login_rate_limited(ip: str, username: str | None = None) -> bool:
     now = time.time()
+    key = _login_key(ip, username)
     async with LOGIN_LOCK:
-        attempts = [t for t in LOGIN_FAILURES.get(ip, []) if now - t < LOGIN_WINDOW]
-        LOGIN_FAILURES[ip] = attempts
+        attempts = [t for t in LOGIN_FAILURES.get(key, []) if now - t < LOGIN_WINDOW]
+        LOGIN_FAILURES[key] = attempts
         return len(attempts) >= LOGIN_MAX_FAILURES
 
-async def record_login_failure(ip: str):
+async def record_login_failure(ip: str, username: str | None = None):
     async with LOGIN_LOCK:
-        LOGIN_FAILURES.setdefault(ip, []).append(time.time())
+        LOGIN_FAILURES[_login_key(ip, username)].append(time.time())
 
 async def create_session(ip: str | None = None, ua: str | None = None) -> str:
     token = secrets.token_urlsafe(32)
@@ -409,15 +470,12 @@ def get_host(request: Request | None = None) -> str:
         candidate = request.headers.get(header_name, "").split(",", 1)[0].strip().split(":", 1)[0].lower()
         if not candidate:
             return configured
-        # Railway: trust the request Host. A forked instance has no ALLOWED_PUBLIC_HOSTS
-        # and possibly no RAILWAY_PUBLIC_DOMAIN, so any non-local Host is authoritative.
-        if os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.environ.get("RAILWAY_PUBLIC_DOMAIN"):
-            if candidate not in {"localhost", "127.0.0.1", "[::1]"}:
-                persist_host(candidate)
-                return candidate
-        host_is_allowed = candidate and (candidate in ALLOWED_PUBLIC_HOSTS or (not ALLOWED_PUBLIC_HOSTS and (configured == "localhost" or candidate == configured.lower())))
+        # Never trust an arbitrary client-supplied Host: it must match the configured
+        # public domain or an explicit allowlist, otherwise link generation could be
+        # poisoned with an attacker-controlled domain.
+        host_is_allowed = candidate in ALLOWED_PUBLIC_HOSTS or (not ALLOWED_PUBLIC_HOSTS and (configured == "localhost" or candidate == configured.lower()))
         if host_is_allowed:
-            CONFIG["host"] = candidate
+            persist_host(candidate)
             return candidate
     return configured
 
@@ -748,14 +806,10 @@ def is_ip_allowed(link: dict | None, uuid: str, ip: str) -> bool:
     return len(ips) < limit
 
 def client_ip(request: Request) -> str:
-    """آی‌پی واقعی کلاینت رو با احتساب هدرهای پراکسی (Railway/Cloudflare) برمی‌گردونه."""
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-    return request.client.host if request.client else "نامشخص"
+    """آی‌پی واقعی کلاینت. فقط در صورتی هدرهای forwarded رو می‌پذیره که اتصال از
+    یک reverse-proxy مورداعتماد بوده (TRUSTED_PROXIES). در غیر این صورت از peer
+    address سوکت استفاده می‌شه که قابل جعل نیست."""
+    return resolve_client_ip(request)
 
 @app.get("/api/qr")
 async def qr_endpoint(data: str):
@@ -1432,12 +1486,12 @@ async def api_login(request: Request):
     body = await request.json()
     ip = client_ip(request)
     # Captcha removed - just check username/password
-    if await login_rate_limited(ip):
-        raise HTTPException(status_code=429, detail="تعداد تلاش‌ها زیاد است؛ چند دقیقه بعد دوباره امتحان کنید")
     username = str(body.get("username", "")).strip()
+    if await login_rate_limited(ip, username):
+        raise HTTPException(status_code=429, detail="تعداد تلاش‌ها زیاد است؛ چند دقیقه بعد دوباره امتحان کنید")
     username_ok = hmac.compare_digest(username, AUTH["username"]) if username else False
     if not username_ok or not verify_password(str(body.get("password", "")), AUTH["password_hash"]):
-        await record_login_failure(ip)
+        await record_login_failure(ip, username or None)
         log_activity("auth", f"تلاش ورود ناموفق از {ip}", "err")
         raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
     if not AUTH["password_hash"].startswith("pbkdf2_sha256$"):
@@ -1446,7 +1500,8 @@ async def api_login(request: Request):
     token = await create_session(ip=ip, ua=str(request.headers.get("user-agent", "")))
     log_activity("auth", f"ورود موفق به پنل از {ip}", "ok")
     resp = JSONResponse({"ok": True})
-    resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, secure=True, samesite="none", path="/")
+    resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True,
+                   secure=request.url.scheme == "https", samesite="lax", path="/")
     return resp
 
 @app.post("/api/logout")

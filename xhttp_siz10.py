@@ -24,6 +24,7 @@ from main import (
     is_ip_allowed,
     is_link_allowed,
     logger,
+    resolve_client_ip,
     save_state,
     stats,
 )
@@ -169,13 +170,8 @@ class _AdaptiveFlow:
 
 
 def _req_client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-    return request.client.host if request.client else "نامشخص"
+    """IP that cannot be spoofed by the client — see main.resolve_client_ip."""
+    return main.resolve_client_ip(request)
 
 
 def _req_ua(request: Request) -> str:

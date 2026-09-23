@@ -24,6 +24,7 @@ from main import (
     log_activity,
     logger,
     now_ir,
+    resolve_client_ip,
     save_state,
     stats,
 )
@@ -36,13 +37,11 @@ from speed_limit import throttle
 RELAY_BUF = 256 * 1024   # 256 KB buffer
 
 def _ws_client_ip(ws: WebSocket) -> str:
-    fwd = ws.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    real_ip = ws.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-    return ws.client.host if ws.client else "نامشخص"
+    """IP that cannot be spoofed by the client.
+
+    X-Forwarded-For / X-Real-IP are attacker-controlled headers; they are only read
+    when the TCP peer is a trusted proxy, otherwise the socket peer is authoritative."""
+    return resolve_client_ip(ws)
 
 async def parse_vless_header(chunk: bytes):
     if len(chunk) < 24:
