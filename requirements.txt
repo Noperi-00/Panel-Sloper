@@ -4,3 +4,4 @@ httpx[http2]==0.25.1
 websockets==12.0
 aiofiles==25.1.0
 psutil==7.2.2
+qrcode==7.4.2

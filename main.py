@@ -13,6 +13,8 @@ import socket
 import sys
 import time
 import string
+import qrcode as _qrlib
+from qrcode.constants import ERROR_CORRECT_L as _QR_EC_L
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -607,116 +609,21 @@ _QR_ALIGN = {2: (6, 18), 3: (6, 22), 4: (6, 26)}
 _QR_CAP = {1: 14, 2: 26, 3: 42, 4: 78}   # byte-mode capacity (L)
 
 def _qr_build(text: str):
-    """Return (matrix, size) for a version 1-4 byte-mode QR with mask 0."""
-    data = text.encode("utf-8")
-    n = len(data)
-    version = 1
-    for v in (1, 2, 3, 4):
-        if n <= _QR_CAP[v]:
-            version = v
-            break
-    else:
-        version = 4
-    size = version * 4 + 17
-    total_cw = {1: 26, 2: 44, 3: 70, 4: 100}[version]
-    ec_len = {1: 7, 2: 10, 3: 15, 4: 16}[version]
+    """Return (matrix, size) using the reference `qrcode` library.
 
-    bits = [0, 1, 0, 0]  # byte-mode indicator
-    for i in range(7, -1, -1):
-        bits.append((n >> i) & 1)
-    for ch in data:
-        for i in range(7, -1, -1):
-            bits.append((ch >> i) & 1)
-    max_bits = (total_cw + ec_len) * 8
-    bits = bits[:max_bits]
-    while len(bits) % 8:
-        bits.append(0)
-    pad = [1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1]
-    pi = 0
-    while len(bits) < max_bits:
-        bits.append(pad[pi % 16])
-        pi += 1
-    codewords = []
-    for b in range(0, len(bits), 8):
-        v = 0
-        for bit in bits[b:b + 8]:
-            v = (v << 1) | bit
-        codewords.append(v)
-    ec = _rs_blocks(codewords, ec_len)
-    codewords += ec
-
-    M = [[-1] * size for _ in range(size)]
-
-    finder = [[1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1],
-              [1, 0, 1, 1, 1, 0, 1], [1, 0, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 1],
-              [1, 1, 1, 1, 1, 1, 1]]
-    for (r, c) in [(0, 0), (0, size - 7), (size - 7, 0)]:
-        for y in range(7):
-            for x in range(7):
-                M[r + y][c + x] = finder[y][x]
-        for i in range(8):
-            for j in range(8):
-                rr, cc = r + i - (1 if r else 0), c + j - (1 if c else 0)
-                if 0 <= rr < size and 0 <= cc < size and M[rr][cc] == -1:
-                    M[rr][cc] = 0
-    M[size - 8][8] = 1  # dark module
-
-    if version >= 2:
-        centers = _QR_ALIGN[version]
-        for cy in centers:
-            for cx in centers:
-                skip = False
-                for dy in range(-2, 3):
-                    for dx in range(-2, 3):
-                        if 0 <= cy + dy < size and 0 <= cx + dx < size and M[cy + dy][cx + dx] != -1:
-                            skip = True
-                if skip:
-                    continue
-                for dy in range(-2, 3):
-                    for dx in range(-2, 3):
-                        v = 1 if (abs(dy) == 2 or abs(dx) == 2 or (dy == 0 and dx == 0)) else 0
-                        M[cy + dy][cx + dx] = v
-
-    for i in range(8, size - 8):
-        if M[6][i] == -1:
-            M[6][i] = 1 if i % 2 == 0 else 0
-        if M[i][6] == -1:
-            M[i][6] = 1 if i % 2 == 0 else 0
-
-    # place codewords zig-zag, applying mask 0 at placement time
-    # (function patterns must NOT be masked)
-    bi = 0
-    col = size - 1
-    up = True
-    while col > 0:
-        if col == 6:
-            col -= 1
-        for k in range(size):
-            r = (size - 1 - k) if up else k
-            for dc in (0, -1):
-                c = col + dc
-                if 0 <= c < size and M[r][c] == -1:
-                    bit = codewords[bi >> 3] >> (7 - (bi & 7)) & 1 if (bi >> 3) < len(codewords) else 0
-                    bi += 1
-                    if (r + c) % 2 == 0:
-                        bit ^= 1
-                    M[r][c] = bit
-        col -= 2
-        up = not up
-
-    # format info: level L(01) mask 0 -> 0b101010000010010 (14 bits)
-    fb = 0b101010000010010
-    fbits = [(fb >> i) & 1 for i in range(13, -1, -1)]
-    pos1 = [(8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 7), (8, 8),
-            (7, 8), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8)]
-    pos2 = [(size - 1, 8), (size - 2, 8), (size - 3, 8), (size - 4, 8), (size - 5, 8),
-            (size - 6, 8), (size - 7, 8), (size - 8, 8),
-            (8, size - 8), (8, size - 7), (8, size - 6), (8, size - 5), (8, size - 4), (8, size - 3)]
-    for i, (r, c) in enumerate(pos1):
-        M[r][c] = fbits[i]
-    for i, (r, c) in enumerate(pos2):
-        M[r][c] = fbits[i]
-    return M, size
+    The previous hand-rolled encoder produced unreadable QR codes: it
+    skipped version selection for long payloads (>78 bytes it silently
+    clamped to v4), hardcoded format-info bits for mask 0 while applying
+    the mask at placement time, and never interleaved the RS blocks.
+    Delegating to the reference library fixes all of that.
+    """
+    qr = _qrlib.QRCode(error_correction=_qrlib.constants.ERROR_CORRECT_L,
+                       box_size=1, border=0)
+    qr.add_data(text)
+    qr.make(fit=True)
+    m = qr.get_matrix()
+    # Normalise True/False -> 1/0 so the renderer and any old callers keep working.
+    return [[1 if cell else 0 for cell in row] for row in m], len(m)
 
 def qr_svg(data: str, size: int = 200, dark: str = "#10B981", light: str = "#ffffff") -> str:
     """Render a scannable QR (byte mode, L) as inline SVG. No dependencies."""
@@ -724,7 +631,13 @@ def qr_svg(data: str, size: int = 200, dark: str = "#10B981", light: str = "#fff
         M, n = _qr_build(data)
     except Exception:
         return ""
-    cell = size / n
+    if n <= 0:
+        return ""
+    # Add a 4-module quiet zone, as the QR spec requires for reliable scanning.
+    q = 4
+    n2 = n + 2 * q
+    cell = size / n2
+    off = q * cell
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}" shape-rendering="crispEdges">',
              f'<rect width="{size}" height="{size}" fill="{light}"/>']
     for y in range(n):
@@ -736,10 +649,10 @@ def qr_svg(data: str, size: int = 200, dark: str = "#10B981", light: str = "#fff
                     run_x = x
             else:
                 if run_x >= 0:
-                    parts.append(f'<rect x="{run_x*cell:.2f}" y="{y*cell:.2f}" width="{(x-run_x)*cell:.2f}" height="{cell:.2f}" fill="{dark}"/>')
+                    parts.append(f'<rect x="{(run_x*cell)+off:.2f}" y="{(y*cell)+off:.2f}" width="{(x-run_x)*cell:.2f}" height="{cell:.2f}" fill="{dark}"/>')
                     run_x = -1
         if run_x >= 0:
-            parts.append(f'<rect x="{run_x*cell:.2f}" y="{y*cell:.2f}" width="{(n-run_x)*cell:.2f}" height="{cell:.2f}" fill="{dark}"/>')
+            parts.append(f'<rect x="{(run_x*cell)+off:.2f}" y="{(y*cell)+off:.2f}" width="{(n-run_x)*cell:.2f}" height="{cell:.2f}" fill="{dark}"/>')
     parts.append('</svg>')
     return ''.join(parts)
 
