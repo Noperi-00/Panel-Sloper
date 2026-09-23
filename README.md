@@ -146,6 +146,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 **TON (TON):**
 `UQBChYa6MgPOBG9nhb__ndHGOpPyadZXrv06YKjWoU7tJnSp`
 
+**پشتیبانی (تلگرام):** [@Noperi_00](https://t.me/Noperi_00)
+
 ---
 
 ## 📜 لایسنس
