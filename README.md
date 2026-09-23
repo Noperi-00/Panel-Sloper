@@ -148,6 +148,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 **پشتیبانی (تلگرام):** [@Noperi_00](https://t.me/Noperi_00)
 
+**کانال تلگرام:** [@Mr_Noperi_00](https://t.me/Mr_Noperi_00)
+
 ---
 
 ## 📜 لایسنس
