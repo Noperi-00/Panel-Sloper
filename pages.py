@@ -1010,18 +1010,36 @@ a{color:inherit;text-decoration:none}
         <input type="text" class="fi" id="qs-name" placeholder="مثلاً: سرویس VIP" style="width:100%">
       </div>
       <div class="fg" style="margin-bottom:0">
-        <label style="font-size:11px;font-weight:700;color:var(--muted,#94a3b8);margin-bottom:5px;display:block">حجم مشترک (GB)</label>
-        <input type="number" class="fi" id="qs-vol" placeholder="20" min="0" value="20" style="width:100%">
+        <label style="font-size:11px;font-weight:700;color:var(--muted,#94a3b8);margin-bottom:5px;display:block">حجم مشترک (GB) — <span style="opacity:.8">۰ = نامحدود</span></label>
+        <input type="number" class="fi" id="qs-vol" placeholder="20" min="0" step="0.5" value="20" style="width:100%">
       </div>
       <div class="fg" style="margin-bottom:0">
-        <label style="font-size:11px;font-weight:700;color:var(--muted,#94a3b8);margin-bottom:5px;display:block">مدت اعتبار (روز)</label>
-        <input type="number" class="fi" id="qs-days" placeholder="30" min="1" value="30" style="width:100%">
+        <label style="font-size:11px;font-weight:700;color:var(--muted,#94a3b8);margin-bottom:5px;display:block">مدت اعتبار (روز) — <span style="opacity:.8">۰ = نامحدود</span></label>
+        <input type="number" class="fi" id="qs-days" placeholder="30" min="0" step="1" value="30" style="width:100%">
       </div>
       <div class="fg" style="margin-bottom:0">
-        <label style="font-size:11px;font-weight:700;color:var(--muted,#94a3b8);margin-bottom:5px;display:block">سقف کاربر (IP)</label>
-        <input type="number" class="fi" id="qs-ip" placeholder="2" min="0" value="2" style="width:100%">
+        <label style="font-size:11px;font-weight:700;color:var(--muted,#94a3b8);margin-bottom:5px;display:block">سقف کاربر (IP) — <span style="opacity:.8">۰ = نامحدود</span></label>
+        <input type="number" class="fi" id="qs-ip" placeholder="2" min="0" step="1" value="2" style="width:100%">
       </div>
     </div>
+    <div id="qs-summary" style="font-size:11.5px;color:var(--muted,#94a3b8);background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.18);border-radius:12px;padding:10px 13px;margin-bottom:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>
+    <script>
+    function qsPreviewUpdate(){
+      const el=document.getElementById('qs-summary'); if(!el) return;
+      const vol=parseFloat(document.getElementById('qs-vol').value)||0;
+      const days=parseInt(document.getElementById('qs-days').value)||0;
+      const ip=parseInt(document.getElementById('qs-ip').value)||0;
+      const parts=[];
+      parts.push(vol>0?('💾 حجم مشترک: <b style="color:var(--t1,#fff)">'+vol+' GB</b> بین ۲۴ کانفیگ ≈ '+(vol/24).toFixed(2)+' GB هر کانفیگ'):'💾 حجم: <b style="color:var(--t1,#fff)">نامحدود</b>');
+      parts.push(days>0?('⏱ اعتبار: <b style="color:var(--t1,#fff)">'+days+' روز</b>'):'⏱ اعتبار: <b style="color:var(--t1,#fff)">نامحدود</b>');
+      parts.push(ip>0?('📱 حداکثر <b style="color:var(--t1,#fff)">'+ip+' کاربر</b> هم‌زمان'):'📱 کاربر: <b style="color:var(--t1,#fff)">نامحدود</b>');
+      el.innerHTML=parts.join(' <span style="opacity:.4">•</span> ');
+    }
+    ['qs-vol','qs-days','qs-ip'].forEach(id=>{
+      const e=document.getElementById(id); if(e){ e.addEventListener('input',qsPreviewUpdate); }
+    });
+    qsPreviewUpdate();
+    </script>
     <button class="btn btn-p" onclick="quickSubCreate()" id="qs-submit-btn" style="width:100%;padding:12px;font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;white-space:normal;text-align:center;line-height:1.6;flex-wrap:wrap">
       <i class="ti ti-plus"></i> ساخت گروه ساب + ۲۴ کانفیگ با حجم مشترک
     </button>
@@ -2664,9 +2682,13 @@ async function quickSubCreate(){
   const resBox = document.getElementById('qs-result');
   const linkInp = document.getElementById('qs-pub-link');
   const name = document.getElementById('qs-name').value.trim() || 'ساب گروه جدید';
-  const volGb = parseFloat(document.getElementById('qs-vol').value) || 0;
-  const days = parseInt(document.getElementById('qs-days').value) || 30;
-  const ipLimit = parseInt(document.getElementById('qs-ip').value) || 2;
+  // 0 = unlimited for all three
+  const rawVol = document.getElementById('qs-vol').value.trim();
+  const rawDays = document.getElementById('qs-days').value.trim();
+  const rawIp = document.getElementById('qs-ip').value.trim();
+  const volGb = rawVol === '' ? 0 : (parseFloat(rawVol) || 0);
+  const days = rawDays === '' ? 0 : (parseInt(rawDays) || 0);
+  const ipLimit = rawIp === '' ? 0 : (parseInt(rawIp) || 0);
 
   if (btn.dataset.busy === '1') { return; }
   btn.dataset.busy = '1';
@@ -3064,6 +3086,9 @@ async function submitLock(){{
 
 function renderContent(d){{
   const activeCount=d.links.filter(l=>l.active).length;
+  if (!d.total_limit_bytes) {{
+    document.querySelectorAll('#stats-bar .stat-card').forEach(c => {{ c.style.gridColumn=''; }});
+  }}
   const baseSubUrl = d.sub_url || (window.location.protocol + '//' + window.location.host + '/sub-group/' + UUID_KEY);
   const subUrl = baseSubUrl + (savedPw ? '?pw=' + encodeURIComponent(savedPw) : '');
 
@@ -3102,7 +3127,7 @@ function renderContent(d){{
       <button class="copy-all-btn" onclick="copyAllConfigs()"><i class="ti ti-clipboard-copy"></i> کپی همه (${{toFa(activeCount)}})</button>
     </div>
 
-    <div class="stats-bar">
+    <div class="stats-bar" id="stats-bar">
       <div class="stat-card">
         <div class="stat-label">کانفیگ‌های فعال</div>
         <div class="stat-val">${{toFa(activeCount)}}</div>
@@ -3116,7 +3141,20 @@ function renderContent(d){{
       <div class="stat-card">
         <div class="stat-label">کل مصرف</div>
         <div class="stat-val" style="font-size:17px;margin-top:3px">${{esc(d.total_used_fmt)}}</div>
-        <div class="stat-sub">همه کانفیگ‌ها</div>
+        <div class="stat-sub">${{d.total_limit_bytes ? 'از ' + esc(d.total_limit_fmt) : 'همه کانفیگ‌ها'}}</div>
+      </div>
+      <div class="stat-card" style="grid-column:span 3">
+        <div class="stat-label">سهمیه و اعتبار گروه</div>
+        <div class="stat-val" style="font-size:15px;margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          <i class="ti ti-database" style="font-size:17px;color:var(--accent2)"></i>
+          ${{d.total_limit_bytes ? `سهمیه: <b>${{esc(d.total_limit_fmt)}}</b>` : 'سهمیه: <b>نامحدود</b>'}}
+          <span style="opacity:.35">•</span>
+          <i class="ti ti-clock" style="font-size:17px;color:var(--amber)"></i>
+          ${{d.expires_at
+              ? `اعتبار: <b>${{d.days_left}} روز</b> (تا ${{new Date(d.expires_at).toLocaleDateString('fa-IR')}})`
+              : 'اعتبار: <b>نامحدود</b>'}}
+        </div>
+        <div class="stat-sub">${{d.total_limit_bytes ? 'مصرف‌شده: ' + esc(d.total_used_fmt) + ' از ' + esc(d.total_limit_fmt) : 'محدودیت حجمی فعال نیست'}}</div>
       </div>
     </div>
 

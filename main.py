@@ -2243,6 +2243,23 @@ async def public_sub_data(uuid_key: str, request: Request):
     total_used = sum(l["used_bytes"] for l in links_out)
     sub_used = sub.get("total_used_bytes", total_used)
     total_limit = sub.get("total_limit_bytes", 0)
+    # Expiry: the group-level total_days drives reaper/auto-expiry. Derive the exact
+    # expiry date from the stored matrix so the public page shows the real deadline.
+    total_days = int(sub.get("total_days") or 0)
+    group_expires_at = sub.get("expires_at")
+    if not group_expires_at and total_days > 0:
+        created_iso = sub.get("created_at")
+        if created_iso:
+            try:
+                group_expires_at = (datetime.fromisoformat(created_iso) + timedelta(days=total_days)).isoformat()
+            except (ValueError, TypeError):
+                group_expires_at = None
+    days_left = None
+    if group_expires_at:
+        try:
+            days_left = max(0, (datetime.fromisoformat(group_expires_at) - datetime.now()).days)
+        except (ValueError, TypeError):
+            days_left = None
     return {
         "locked": False,
         "name": sub["name"],
@@ -2253,6 +2270,8 @@ async def public_sub_data(uuid_key: str, request: Request):
         "total_limit_fmt": "نامحدود" if total_limit == 0 else fmt_bytes(total_limit),
         "total_used_bytes": sub_used,
         "total_used_fmt": fmt_bytes(sub_used),
+        "expires_at": group_expires_at,
+        "days_left": days_left,
         "links": links_out}
 
 # ── HTML Pages (login + dashboard) ───────────────────────────────────────────
