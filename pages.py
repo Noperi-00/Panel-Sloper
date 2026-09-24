@@ -1075,7 +1075,7 @@ a{color:inherit;text-decoration:none}
     <div class="vl-code" id="vless-main">در حال دریافت...</div>
     <div class="vl-actions">
       <button class="btn btn-p" onclick="cpText('vless-main')"><i class="ti ti-copy"></i> کپی</button>
-      <button class="btn btn-g" onclick="qrFor('vless-main')" style="display:none"><i class="ti ti-qrcode"></i> QR</button>
+      <button class="btn btn-g" onclick="qrFor('vless-main')"><i class="ti ti-qrcode"></i> QR</button>
       <button class="btn btn-o" onclick="navTo('links')"><i class="ti ti-link-plus"></i> کانفیگ محدود</button>
       <button class="btn btn-pur" onclick="navTo('subgroups')"><i class="ti ti-folders"></i> گروه‌های ساب</button>
     </div>
@@ -2098,7 +2098,7 @@ async function loadLinks(){
         <button class="tog${allowed?' on':''}" onclick="toggleActive('${l.uuid}',${!l.active})" title="فعال/غیرفعال"></button>
         <button class="btn btn-sm btn-g btn-icon" onclick="navigator.clipboard.writeText('${esc(l.vless_link)}').then(()=>toast('لینک کپی شد','ok'))" title="کپی لینک"><i class="ti ti-copy"></i></button>
         <button class="btn btn-sm btn-g btn-icon" onclick="navigator.clipboard.writeText('${esc(l.sub_url)}').then(()=>toast('Sub کپی شد','ok'))" title="Sub URL"><i class="ti ti-rss"></i></button>
-        <button class="btn btn-sm btn-g btn-icon" style="display:none" onclick="showQR('${esc(l.vless_link)}')" title="QR"><i class="ti ti-qrcode"></i></button>
+        <button class="btn btn-sm btn-g btn-icon" onclick="showQR('${esc(l.vless_link)}')" title="QR"><i class="ti ti-qrcode"></i></button>
         <button class="btn btn-sm btn-amber btn-icon" onclick="openEditLink('${l.uuid}')" title="ویرایش"><i class="ti ti-edit"></i></button>
         <button class="btn btn-sm btn-g btn-icon" onclick="resetUsage('${l.uuid}')" title="ریست مصرف"><i class="ti ti-rotate"></i></button>
         <button class="btn btn-sm btn-d btn-icon" onclick="deleteLink('${l.uuid}')" title="حذف"><i class="ti ti-trash"></i></button>
@@ -2184,7 +2184,7 @@ async function deleteLink(uuid){
   if(!confirm('حذف این کانفیگ؟'))return;
   try{const r=await authF('/api/links/'+uuid,{method:'DELETE'});if(!r.ok)throw new Error();toast('حذف شد ✓','ok');loadLinks();}catch(e){toast('خطا','err')}
 }
-function showQR(link){return;document.getElementById('qr-img').src='/api/qr?data='+encodeURIComponent(link);document.getElementById('qr-modal').classList.add('open')}
+function showQR(link){document.getElementById('qr-img').src='/api/qr?data='+encodeURIComponent(link);document.getElementById('qr-modal').classList.add('open')}
 let allSubsRaw=[];
 async function loadSubs(){
   try{
@@ -2229,12 +2229,12 @@ function renderSubsGrid(subs){
       <div class="sub-card-url-row" style="margin-top:6px">
         <span class="sub-card-url-text" style="color:var(--purple-t)" title="لینک ساب (base64)">${esc(s.sub_url)}</span>
         <button class="sub-card-url-copy" onclick="navigator.clipboard.writeText('${esc(s.sub_url)}').then(()=>toast('لینک ساب کپی شد','ok'))" title="کپی ساب"><i class="ti ti-rss"></i></button>
-        <button class="sub-card-url-copy" style="display:none" onclick="showQR('${esc(s.sub_url)}')" title="QR ساب"><i class="ti ti-qrcode"></i></button>
+        <button class="sub-card-url-copy" onclick="showQR('${esc(s.sub_url)}')" title="QR ساب"><i class="ti ti-qrcode"></i></button>
       </div>
       <div class="sub-card-bottom">
         <button class="btn btn-sm btn-g" onclick="openSubLinks('${esc(s.sub_id)}','${esc(s.name)}')"><i class="ti ti-link-plus"></i> کانفیگ‌ها</button>
         <button class="btn btn-sm btn-o" onclick="navigator.clipboard.writeText('${esc(s.sub_url)}').then(()=>toast('لینک ساب کپی شد','ok'))"><i class="ti ti-rss"></i> ساب</button>
-        <button class="btn btn-sm btn-g btn-icon" style="display:none" onclick="showQR('${esc(s.sub_url)}')" title="QR"><i class="ti ti-qrcode"></i></button>
+        <button class="btn btn-sm btn-g btn-icon" onclick="showQR('${esc(s.sub_url)}')" title="QR"><i class="ti ti-qrcode"></i></button>
         <button class="btn btn-sm btn-d btn-icon" onclick="deleteSub('${esc(s.sub_id)}')" title="حذف"><i class="ti ti-trash"></i></button>
       </div>
     </div>
@@ -2385,7 +2385,7 @@ function renderLmodalList(links){
         <div class="lrow-links">
           <button class="lrow-link-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(vlink)}').then(()=>toast('لینک کپی شد','ok'))" title="کپی لینک VLESS"><i class="ti ti-copy"></i><span>لینک</span></button>
           <button class="lrow-link-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(surl)}').then(()=>toast('ساب کپی شد','ok'))" title="کپی Sub URL"><i class="ti ti-rss"></i><span>ساب</span></button>
-          <button class="lrow-link-btn" style="display:none" onclick="event.stopPropagation();showQR('${esc(vlink)}')" title="QR کد"><i class="ti ti-qrcode"></i><span>QR</span></button>
+          <button class="lrow-link-btn" onclick="event.stopPropagation();showQR('${esc(vlink)}')" title="QR کد"><i class="ti ti-qrcode"></i><span>QR</span></button>
         </div>
       </div>
       <span class="lrow-v2-status ${on?'on':'off'}">${on?'فعال':'غیرفعال'}</span>
@@ -2445,7 +2445,7 @@ async function loadSubsPage(){
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           <button class="btn btn-sm btn-pur" onclick="navigator.clipboard.writeText('${esc(s.sub_url)}').then(()=>toast('کپی شد','ok'))"><i class="ti ti-copy"></i> ساب</button>
           <button class="btn btn-sm btn-pur" onclick="navigator.clipboard.writeText('${esc(s.public_url)}').then(()=>toast('کپی شد','ok'))"><i class="ti ti-globe"></i> پابلیک</button>
-          <button class="btn btn-sm btn-g" style="display:none" onclick="showQR('${esc(s.sub_url)}')"><i class="ti ti-qrcode"></i></button>
+          <button class="btn btn-sm btn-g" onclick="showQR('${esc(s.sub_url)}')"><i class="ti ti-qrcode"></i></button>
         </div>
       </div>
     `).join('');
@@ -3022,8 +3022,7 @@ function protoChip(p){{
   return '<span class="proto-chip pc-ws">VLESS · WS</span>';
 }}
 
-function showQR(label,link){{  // QR removed from UI per user request; /api/qr endpoint kept for internal use.
-  return;
+function showQR(label,link){{
   document.getElementById('qr-label').textContent=label;
   document.getElementById('qr-img').src='/api/qr?data='+encodeURIComponent(link);
   document.getElementById('qr-modal').classList.add('open');
@@ -3113,7 +3112,7 @@ function renderContent(d){{
           onclick="navigator.clipboard.writeText(window._sloperSubUrl).then(()=>toast('لینک ساب کپی شد ✓','ok'))">
           <i class="ti ti-copy"></i> کپی لینک ساب
         </button>
-        <button class="btn btn-g" style="padding:7px 12px;font-size:10.5px;display:none"
+        <button class="btn btn-g" style="padding:7px 12px;font-size:10.5px"
           onclick="showQR(window._sloperSubName + ' — کل گروه', window._sloperSubUrl)">
           <i class="ti ti-qrcode"></i> QR کل
         </button>
@@ -3206,11 +3205,11 @@ function renderContent(d){{
                   onclick="navigator.clipboard.writeText(window._sloperLinks[${{i}}].sub).then(()=>toast('لینک ساب کلاینت کپی شد ✓','ok'))">
                   <i class="ti ti-rss"></i> کپی ساب کلاینت
                 </button>
-                <button class="btn btn-g" style="display:none"
+                <button class="btn btn-g"
                   onclick="showQR(window._sloperLinks[${{i}}].label, window._sloperLinks[${{i}}].vless)">
                   <i class="ti ti-qrcode"></i> QR کانفیگ
                 </button>
-                <button class="btn btn-g" style="display:none"
+                <button class="btn btn-g"
                   onclick="showQR('ساب گروه: '+window._sloperSubName, window._sloperSubUrl)">
                   <i class="ti ti-rss"></i> QR ساب
                 </button>
