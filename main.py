@@ -726,8 +726,14 @@ def client_ip(request: Request) -> str:
 
 @app.get("/api/qr")
 async def qr_endpoint(data: str):
-    """Inline SVG QR — no third-party dependency."""
-    if not data or len(data) > 300:
+    """Inline SVG QR — no third-party dependency.
+
+    QR byte-mode capacity at the highest useful version (v40, L) is 2,953
+    bytes, so a long VLESS/XHTTP link is well within range. The old 300-char
+    cap rejected every config whose host+path pushed it past the limit —
+    i.e. most of the 24-config matrix.
+    """
+    if not data or len(data) > 2900:
         raise HTTPException(status_code=400, detail="invalid data")
     svg = qr_svg(data, size=260)
     if not svg:
