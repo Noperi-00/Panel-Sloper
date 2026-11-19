@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 cookies*.txt
 pages.py.bak
+
+# security: never commit secrets
+data/panel_secret.key
+*.key
